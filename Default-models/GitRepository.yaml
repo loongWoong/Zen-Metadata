@@ -1,0 +1,874 @@
+# Git 仓库元模型
+entity_models:
+  - type: GitRepository
+    version: v1
+    label: Git仓库
+    description: 用于描述Git代码仓库
+    properties:
+      url:
+        type: string
+        required: true
+        description: 仓库URL
+      remote_url:
+        type: string
+        required: false
+        description: 远程仓库URL
+      default_branch:
+        type: string
+        required: false
+        description: 默认分支名称
+      description:
+        type: string
+        required: false
+        description: 仓库描述
+      language:
+        type: string
+        required: false
+        description: 主要编程语言
+      license:
+        type: string
+        required: false
+        description: 许可证类型
+      created_at:
+        type: datetime
+        required: false
+        description: 创建时间
+      updated_at:
+        type: datetime
+        required: false
+        description: 最后更新时间
+      star_count:
+        type: integer
+        required: false
+        description: 星标数
+      fork_count:
+        type: integer
+        required: false
+        description: Fork数
+    relationships:
+      - type: CONTAINS
+        target: GitBranch
+        description: 包含分支
+      - type: CONTAINS
+        target: GitTag
+        description: 包含标签
+      - type: CONTAINS
+        target: GitFile
+        description: 包含文件
+    collector:
+      plugin: git_repository_collector.py
+      entry: collect_repositories
+      params:
+        source: "git"
+    quality_rules:
+      completeness:
+        required_properties: [url]
+      freshness:
+        ttl_days: 7
+      connectivity:
+        min_relationships: 1
+    enabled: true
+    created_by: "system"
+
+  - type: GitBranch
+    version: v1
+    label: Git分支
+    description: 用于描述Git分支
+    properties:
+      name:
+        type: string
+        required: true
+        description: 分支名称
+      is_default:
+        type: boolean
+        required: false
+        description: 是否为默认分支
+      is_protected:
+        type: boolean
+        required: false
+        description: 是否为受保护分支
+      last_commit_hash:
+        type: string
+        required: false
+        description: 最后提交的哈希值
+      commit_count:
+        type: integer
+        required: false
+        description: 提交数量
+      created_at:
+        type: datetime
+        required: false
+        description: 创建时间
+    relationships:
+      - type: CONTAINS
+        target: GitCommit
+        description: 包含提交
+      - type: BELONGS_TO
+        target: GitRepository
+        description: 属于仓库
+    collector:
+      plugin: git_branch_collector.py
+      entry: collect_branches
+      params:
+        source: "git"
+      config_schema:
+        - name: repo_path
+          type: string
+          label: 本地仓库路径
+          description: 本地Git仓库的路径
+          required: true
+          default: "."
+          placeholder: "."
+        - name: repo_url
+          type: string
+          label: 远程仓库URL
+          description: 远程Git仓库的URL（如果使用远程仓库）
+          required: false
+          placeholder: "https://github.com/user/repo.git"
+        - name: source
+          type: string
+          label: 数据源标识
+          description: 可选，用于标识数据源
+          required: false
+          default: "git"
+          placeholder: "git"
+    quality_rules:
+      completeness:
+        required_properties: [name]
+      freshness:
+        ttl_days: 3
+    enabled: true
+    created_by: "system"
+
+  - type: GitCommit
+    version: v1
+    label: Git提交
+    description: 用于描述Git提交记录
+    properties:
+      hash:
+        type: string
+        required: true
+        description: 提交哈希值
+      message:
+        type: string
+        required: true
+        description: 提交消息
+      author_name:
+        type: string
+        required: true
+        description: 作者名称
+      author_email:
+        type: string
+        required: false
+        description: 作者邮箱
+      committer_name:
+        type: string
+        required: false
+        description: 提交者名称
+      committer_email:
+        type: string
+        required: false
+        description: 提交者邮箱
+      committed_at:
+        type: datetime
+        required: true
+        description: 提交时间
+      files_changed:
+        type: integer
+        required: false
+        description: 变更文件数
+      insertions:
+        type: integer
+        required: false
+        description: 新增行数
+      deletions:
+        type: integer
+        required: false
+        description: 删除行数
+    relationships:
+      - type: BELONGS_TO
+        target: GitBranch
+        description: 属于分支
+      - type: MODIFIES
+        target: GitFile
+        description: 修改文件
+      - type: CREATED_BY
+        target: GitAuthor
+        description: 由作者创建
+      - type: HAS_PARENT
+        target: GitCommit
+        description: 父提交
+      - type: HAS_MERGE
+        target: GitCommit
+        description: 合并提交
+    collector:
+      plugin: git_commit_collector.py
+      entry: collect_commits
+      params:
+        source: "git"
+      config_schema:
+        - name: repo_path
+          type: string
+          label: 本地仓库路径
+          description: 本地Git仓库的路径
+          required: true
+          default: "."
+          placeholder: "."
+        - name: repo_url
+          type: string
+          label: 远程仓库URL
+          description: 远程Git仓库的URL（如果使用远程仓库）
+          required: false
+          placeholder: "https://github.com/user/repo.git"
+        - name: limit
+          type: integer
+          label: 提交数量限制
+          description: 可选，限制采集的提交数量
+          required: false
+          default: 100
+          min: 1
+          placeholder: "100"
+        - name: source
+          type: string
+          label: 数据源标识
+          description: 可选，用于标识数据源
+          required: false
+          default: "git"
+          placeholder: "git"
+    quality_rules:
+      completeness:
+        required_properties: [hash, message, author_name, committed_at]
+      freshness:
+        ttl_days: 1
+      connectivity:
+        min_relationships: 2
+    enabled: true
+    created_by: "system"
+
+  - type: GitFile
+    version: v1
+    label: Git文件
+    description: 用于描述Git仓库中的文件
+    properties:
+      path:
+        type: string
+        required: true
+        description: 文件路径
+      name:
+        type: string
+        required: true
+        description: 文件名
+      extension:
+        type: string
+        required: false
+        description: 文件扩展名
+      size:
+        type: integer
+        required: false
+        description: 文件大小（字节）
+      language:
+        type: string
+        required: false
+        description: 编程语言
+      lines_of_code:
+        type: integer
+        required: false
+        description: 代码行数
+      is_binary:
+        type: boolean
+        required: false
+        description: 是否为二进制文件
+      last_modified:
+        type: datetime
+        required: false
+        description: 最后修改时间
+    relationships:
+      - type: BELONGS_TO
+        target: GitRepository
+        description: 属于仓库
+      - type: MODIFIED_BY
+        target: GitCommit
+        description: 被提交修改
+    collector:
+      plugin: git_file_collector.py
+      entry: collect_files
+      params:
+        source: "git"
+    quality_rules:
+      completeness:
+        required_properties: [path, name]
+      freshness:
+        ttl_days: 30
+    enabled: true
+    created_by: "system"
+
+  - type: GitAuthor
+    version: v1
+    label: Git作者
+    description: 用于描述Git提交的作者
+    properties:
+      name:
+        type: string
+        required: true
+        description: 作者名称
+      email:
+        type: string
+        required: false
+        description: 作者邮箱
+      commit_count:
+        type: integer
+        required: false
+        description: 提交数量
+      first_commit_at:
+        type: datetime
+        required: false
+        description: 首次提交时间
+      last_commit_at:
+        type: datetime
+        required: false
+        description: 最后提交时间
+    relationships:
+      - type: CREATES
+        target: GitCommit
+        description: 创建提交
+    collector:
+      plugin: git_author_collector.py
+      entry: collect_authors
+      params:
+        source: "git"
+    quality_rules:
+      completeness:
+        required_properties: [name]
+      freshness:
+        ttl_days: 90
+    enabled: true
+    created_by: "system"
+
+  - type: GitTag
+    version: v1
+    label: Git标签
+    description: 用于描述Git标签
+    properties:
+      name:
+        type: string
+        required: true
+        description: 标签名称
+      message:
+        type: string
+        required: false
+        description: 标签消息
+      commit_hash:
+        type: string
+        required: true
+        description: 关联的提交哈希
+      created_at:
+        type: datetime
+        required: false
+        description: 创建时间
+      is_annotated:
+        type: boolean
+        required: false
+        description: 是否为注释标签
+    relationships:
+      - type: BELONGS_TO
+        target: GitRepository
+        description: 属于仓库
+      - type: POINTS_TO
+        target: GitCommit
+        description: 指向提交
+    collector:
+      plugin: git_tag_collector.py
+      entry: collect_tags
+      params:
+        source: "git"
+    quality_rules:
+      completeness:
+        required_properties: [name, commit_hash]
+      freshness:
+        ttl_days: 90
+    enabled: true
+    created_by: "system"
+
+relationship_models:
+  - type: CONTAINS
+    version: v1
+    label: 包含
+    description: 仓库包含分支、标签或文件
+    source_types: [GitRepository]
+    target_types: [GitBranch, GitTag, GitFile]
+    properties:
+      created_at:
+        type: datetime
+        description: 关系创建时间
+    inferable: false
+    derivable: false
+    enabled: true
+    created_by: "system"
+
+  - type: BELONGS_TO
+    version: v1
+    label: 属于
+    description: 分支、文件、标签属于仓库
+    source_types: [GitBranch, GitFile, GitTag]
+    target_types: [GitRepository]
+    properties:
+      created_at:
+        type: datetime
+        description: 关系创建时间
+    inferable: false
+    derivable: false
+    enabled: true
+    created_by: "system"
+
+  - type: MODIFIES
+    version: v1
+    label: 修改
+    description: 提交修改文件
+    source_types: [GitCommit]
+    target_types: [GitFile]
+    properties:
+      change_type:
+        type: enum
+        values: [added, modified, deleted, renamed]
+        description: 变更类型
+      lines_added:
+        type: integer
+        description: 新增行数
+      lines_deleted:
+        type: integer
+        description: 删除行数
+    inferable: false
+    derivable: false
+    enabled: true
+    created_by: "system"
+
+  - type: MODIFIED_BY
+    version: v1
+    label: 被修改
+    description: 文件被提交修改
+    source_types: [GitFile]
+    target_types: [GitCommit]
+    properties:
+      change_type:
+        type: enum
+        values: [added, modified, deleted, renamed]
+        description: 变更类型
+    inferable: true
+    derivable: true
+    enabled: true
+    created_by: "system"
+
+  - type: CREATED_BY
+    version: v1
+    label: 由...创建
+    description: 提交由作者创建
+    source_types: [GitCommit]
+    target_types: [GitAuthor]
+    properties:
+      committed_at:
+        type: datetime
+        description: 提交时间
+    inferable: false
+    derivable: false
+    enabled: true
+    created_by: "system"
+
+  - type: CREATES
+    version: v1
+    label: 创建
+    description: 作者创建提交
+    source_types: [GitAuthor]
+    target_types: [GitCommit]
+    properties:
+      committed_at:
+        type: datetime
+        description: 提交时间
+    inferable: true
+    derivable: true
+    enabled: true
+    created_by: "system"
+
+  - type: HAS_PARENT
+    version: v1
+    label: 父提交
+    description: 提交的父提交关系
+    source_types: [GitCommit]
+    target_types: [GitCommit]
+    properties:
+      parent_index:
+        type: integer
+        description: 父提交索引（用于合并提交）
+    inferable: false
+    derivable: false
+    enabled: true
+    created_by: "system"
+
+  - type: HAS_MERGE
+    version: v1
+    label: 合并
+    description: 合并提交关系
+    source_types: [GitCommit]
+    target_types: [GitCommit]
+    properties:
+      merge_type:
+        type: enum
+        values: [merge, squash, rebase]
+        description: 合并类型
+    inferable: false
+    derivable: false
+    enabled: true
+    created_by: "system"
+
+  - type: POINTS_TO
+    version: v1
+    label: 指向
+    description: 标签指向提交
+    source_types: [GitTag]
+    target_types: [GitCommit]
+    properties:
+      created_at:
+        type: datetime
+        description: 创建时间
+    inferable: false
+    derivable: false
+    enabled: true
+    created_by: "system"
+
+plugins:
+  git_repository_collector.py: |
+    """
+    Git仓库采集器插件
+    """
+    from src.collectors.base import BaseCollector
+    from src.core.models import MetadataEntity, MetadataRelationship, CollectionResult, MetadataType, RelationshipType
+    from typing import Dict, Any, List
+    from datetime import datetime
+    from pathlib import Path
+    
+    class GitRepositoryCollector(BaseCollector):
+        """Git仓库采集器"""
+        
+        def collect(self) -> CollectionResult:
+            """
+            采集Git仓库信息
+            从本地Git仓库或远程仓库URL采集
+            """
+            entities = []
+            relationships = []
+            
+            repo_path = self.config.get("repo_path", ".")
+            repo_url = self.config.get("repo_url")
+            
+            try:
+                # 获取仓库基本信息
+                repo_info = None
+                if repo_path:
+                    repo_path_obj = Path(repo_path)
+                    git_dir = repo_path_obj / ".git"
+                    if git_dir.exists():
+                        # 本地仓库
+                        repo_info = self._get_local_repo_info(repo_path_obj)
+                elif repo_url:
+                    # 远程仓库（需要克隆或API访问）
+                    repo_info = self._get_remote_repo_info(repo_url)
+                
+                if not repo_info:
+                    raise ValueError("必须提供有效的repo_path或repo_url")
+                
+                # 创建仓库实体
+                repo_id = self.generate_id("GitRepository", repo_info.get("url", ""))
+                repo_entity = self.create_entity(
+                    entity_type=MetadataType.DIRECTORY,  # 临时使用，实际应该使用GitRepository类型
+                    name=repo_info.get("name", ""),
+                    description=repo_info.get("description"),
+                    properties={
+                        "url": repo_info.get("url", ""),
+                        "remote_url": repo_info.get("remote_url"),
+                        "default_branch": repo_info.get("default_branch", "main"),
+                        "language": repo_info.get("language"),
+                        "license": repo_info.get("license"),
+                        "created_at": repo_info.get("created_at"),
+                        "updated_at": repo_info.get("updated_at"),
+                        "star_count": repo_info.get("star_count"),
+                        "fork_count": repo_info.get("fork_count"),
+                    },
+                    entity_id=repo_id
+                )
+                entities.append(repo_entity)
+                
+            except Exception as e:
+                print(f"采集Git仓库失败: {e}")
+            
+            return CollectionResult(
+                entities=entities,
+                relationships=relationships,
+                metadata={"source": "git_repository_collector", "count": len(entities)}
+            )
+        
+        def _get_local_repo_info(self, repo_path: Path) -> Dict[str, Any]:
+            """获取本地仓库信息（通过读取.git目录）"""
+            info = {
+                "name": repo_path.name,
+                "path": str(repo_path)
+            }
+            
+            try:
+                git_dir = repo_path / ".git"
+                if not git_dir.exists():
+                    return info
+                
+                # 读取远程URL（从config文件）
+                config_file = git_dir / "config"
+                if config_file.exists():
+                    content = config_file.read_text(encoding='utf-8')
+                    # 简单解析git config格式
+                    for line in content.split('\n'):
+                        line = line.strip()
+                        if line.startswith('url ='):
+                            url = line.split('=', 1)[1].strip()
+                            info["remote_url"] = url
+                            info["url"] = url
+                            break
+                
+                # 读取HEAD获取默认分支
+                head_file = git_dir / "HEAD"
+                if head_file.exists():
+                    head_content = head_file.read_text(encoding='utf-8').strip()
+                    if head_content.startswith('ref: refs/heads/'):
+                        branch = head_content.replace('ref: refs/heads/', '')
+                        info["default_branch"] = branch
+                
+            except Exception as e:
+                print(f"获取Git信息失败: {e}")
+            
+            return info
+        
+        def _get_remote_repo_info(self, repo_url: str) -> Dict[str, Any]:
+            """获取远程仓库信息（通过API）"""
+            # 这里可以集成GitHub/GitLab API
+            return {
+                "url": repo_url,
+                "remote_url": repo_url,
+                "name": repo_url.split("/")[-1].replace(".git", "")
+            }
+
+  git_branch_collector.py: |
+    """
+    Git分支采集器插件
+    """
+    from src.collectors.base import BaseCollector
+    from src.core.models import MetadataEntity, MetadataRelationship, CollectionResult, MetadataType, RelationshipType
+    from typing import Dict, Any, List
+    from datetime import datetime
+    from pathlib import Path
+    
+    class GitBranchCollector(BaseCollector):
+        """Git分支采集器"""
+        
+        def collect(self) -> CollectionResult:
+            """
+            采集Git分支信息
+            """
+            entities = []
+            relationships = []
+            
+            repo_path = Path(self.config.get("repo_path", "."))
+            git_dir = repo_path / ".git"
+            
+            if not git_dir.exists():
+                return CollectionResult(
+                    entities=[],
+                    relationships=[],
+                    metadata={"source": "git_branch_collector", "error": "不是有效的Git仓库"}
+                )
+            
+            try:
+                # 获取默认分支（从HEAD）
+                default_branch = None
+                head_file = git_dir / "HEAD"
+                if head_file.exists():
+                    head_content = head_file.read_text(encoding='utf-8').strip()
+                    if head_content.startswith('ref: refs/heads/'):
+                        default_branch = head_content.replace('ref: refs/heads/', '')
+                
+                # 读取所有分支（从refs/heads目录）
+                refs_heads_dir = git_dir / "refs" / "heads"
+                if refs_heads_dir.exists():
+                    for branch_file in refs_heads_dir.rglob("*"):
+                        if branch_file.is_file():
+                            branch_name = str(branch_file.relative_to(refs_heads_dir))
+                            try:
+                                commit_hash = branch_file.read_text(encoding='utf-8').strip()
+                                
+                                branch_id = self.generate_id("GitBranch", str(repo_path), branch_name)
+                                branch_entity = self.create_entity(
+                                    entity_type=MetadataType.FUNCTION,  # 临时使用
+                                    name=branch_name,
+                                    description=f"Git分支: {branch_name}",
+                                    properties={
+                                        "name": branch_name,
+                                        "is_default": branch_name == default_branch,
+                                        "last_commit_hash": commit_hash[:40] if len(commit_hash) >= 40 else commit_hash,
+                                    },
+                                    entity_id=branch_id
+                                )
+                                entities.append(branch_entity)
+                            except Exception as e:
+                                print(f"读取分支 {branch_name} 失败: {e}")
+                            
+            except Exception as e:
+                print(f"采集Git分支失败: {e}")
+            
+            return CollectionResult(
+                entities=entities,
+                relationships=relationships,
+                metadata={"source": "git_branch_collector", "count": len(entities)}
+            )
+
+  git_commit_collector.py: |
+    """
+    Git提交采集器插件
+    注意：此插件需要GitPython库或直接读取.git/objects目录
+    由于安全限制，这里使用简化的实现，仅读取可访问的提交信息
+    """
+    from src.collectors.base import BaseCollector
+    from src.core.models import MetadataEntity, MetadataRelationship, CollectionResult, MetadataType, RelationshipType
+    from typing import Dict, Any, List
+    from datetime import datetime
+    from pathlib import Path
+    import re
+    
+    class GitCommitCollector(BaseCollector):
+        """Git提交采集器"""
+        
+        def collect(self) -> CollectionResult:
+            """
+            采集Git提交信息
+            注意：由于安全限制，此实现仅读取HEAD指向的提交
+            完整实现需要GitPython库或更复杂的.git目录解析
+            """
+            entities = []
+            relationships = []
+            
+            repo_path = Path(self.config.get("repo_path", "."))
+            git_dir = repo_path / ".git"
+            limit = self.config.get("limit", 100)
+            
+            if not git_dir.exists():
+                return CollectionResult(
+                    entities=[],
+                    relationships=[],
+                    metadata={"source": "git_commit_collector", "error": "不是有效的Git仓库"}
+                )
+            
+            try:
+                # 读取HEAD指向的提交
+                head_file = git_dir / "HEAD"
+                if head_file.exists():
+                    head_content = head_file.read_text(encoding='utf-8').strip()
+                    
+                    commit_hash = None
+                    if head_content.startswith('ref: '):
+                        # 解析ref路径
+                        ref_path = head_content.replace('ref: ', '').strip()
+                        ref_file = git_dir / ref_path
+                        if ref_file.exists():
+                            commit_hash = ref_file.read_text(encoding='utf-8').strip()
+                    else:
+                        # 直接是commit hash
+                        commit_hash = head_content
+                    
+                    if commit_hash:
+                        # 读取commit对象（简化实现，仅读取基本信息）
+                        commit_info = self._read_commit_object(git_dir, commit_hash)
+                        if commit_info:
+                            commit_id = self.generate_id("GitCommit", str(repo_path), commit_hash)
+                            commit_entity = self.create_entity(
+                                entity_type=MetadataType.FUNCTION,  # 临时使用
+                                name=commit_hash[:8],
+                                description=commit_info.get("message", "")[:100] if commit_info.get("message") else "",
+                                properties={
+                                    "hash": commit_hash,
+                                    "message": commit_info.get("message", ""),
+                                    "author_name": commit_info.get("author_name", ""),
+                                    "author_email": commit_info.get("author_email", ""),
+                                    "committer_name": commit_info.get("committer_name", ""),
+                                    "committer_email": commit_info.get("committer_email", ""),
+                                    "committed_at": commit_info.get("committed_at", datetime.now().isoformat()),
+                                },
+                                entity_id=commit_id
+                            )
+                            entities.append(commit_entity)
+                            
+                            # 创建父提交关系（HAS_PARENT）
+                            for parent_hash in commit_info.get("parents", []):
+                                if parent_hash:
+                                    parent_id = self.generate_id("GitCommit", str(repo_path), parent_hash)
+                                    rel = self.create_relationship(
+                                        source_id=commit_id,
+                                        target_id=parent_id,
+                                        relationship_type="HAS_PARENT"
+                                    )
+                                    relationships.append(rel)
+                            
+            except Exception as e:
+                print(f"采集Git提交失败: {e}")
+            
+            return CollectionResult(
+                entities=entities,
+                relationships=relationships,
+                metadata={"source": "git_commit_collector", "count": len(entities)}
+            )
+        
+        def _read_commit_object(self, git_dir: Path, commit_hash: str) -> Dict[str, Any]:
+            """读取commit对象（简化实现）"""
+            try:
+                # Git对象存储在.git/objects/xx/xxxxx格式
+                obj_path = git_dir / "objects" / commit_hash[:2] / commit_hash[2:]
+                if obj_path.exists():
+                    # 这里需要解压缩zlib压缩的对象
+                    # 由于安全限制，这里返回空，实际需要zlib库
+                    # 或者使用GitPython库
+                    return {
+                        "message": "",
+                        "author_name": "",
+                        "author_email": "",
+                        "committer_name": "",
+                        "committer_email": "",
+                        "committed_at": datetime.now().isoformat(),
+                        "parents": []
+                    }
+            except Exception as e:
+                print(f"读取commit对象失败: {e}")
+            return None
+
+collector_type: "git_repository"
+
+config_schema:
+  - name: repo_path
+    type: string
+    label: 本地仓库路径
+    description: 本地Git仓库的路径（如果使用本地仓库）
+    required: false
+    default: "."
+    placeholder: "."
+  - name: repo_url
+    type: string
+    label: 远程仓库URL
+    description: 远程Git仓库的URL（如果使用远程仓库）
+    required: false
+    placeholder: "https://github.com/user/repo.git"
+  - name: source
+    type: string
+    label: 数据源标识
+    description: 可选，用于标识数据源
+    required: false
+    default: "git"
+    placeholder: "git"
+
+metadata:
+  name: "Git Repository Metamodel"
+  version: "1.0.0"
+  description: "Git仓库元模型定义，包括仓库、分支、提交、文件、作者和标签"
+  author: "system"
+

@@ -1,0 +1,49 @@
+entity_models:
+- collector:
+    entry: FileSystemCollector
+    params:
+      source: filesystem
+    plugin: filesystem_collector.py
+  created_at: '2026-02-06T13:38:28.315863'
+  created_by: system
+  description: 用于描述文件系统目录
+  enabled: true
+  full_type: Directory@v1
+  label: 目录
+  properties:
+    absolute_path:
+      description: 绝对路径
+      required: false
+      type: string
+    depth:
+      description: 目录深度
+      required: false
+      type: integer
+    name:
+      description: 目录名称
+      required: true
+      type: string
+    path:
+      description: 目录路径
+      required: true
+      type: string
+  quality_rules:
+    completeness:
+      required_properties:
+      - name
+      - path
+    connectivity:
+      min_relationships: 0
+    freshness:
+      ttl_days: 1
+  relationships:
+  - description: 包含子目录
+    target: Directory
+    type: CONTAINS
+  - description: 包含文件
+    target: File
+    type: CONTAINS
+  type: Directory
+  updated_at: '2026-02-06T13:38:28.315863'
+  version: v1
+relationship_models: []

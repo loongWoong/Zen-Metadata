@@ -1,0 +1,394 @@
+# 图数据库元模型
+entity_models:
+  - type: GraphDatabase
+    version: v1
+    label: 图数据库
+    description: 用于描述图数据库（Neo4j, FalkorDB等）
+    properties:
+      name:
+        type: string
+        required: true
+        description: 数据库名称
+      db_type:
+        type: string
+        required: true
+        description: 数据库类型（neo4j, falkordb等）
+      uri:
+        type: string
+        required: false
+        description: 数据库连接URI
+      graph_name:
+        type: string
+        required: false
+        description: 图名称（FalkorDB）
+    relationships:
+      - type: CONTAINS
+        target: NodeLabel
+        description: 包含节点标签
+      - type: CONTAINS
+        target: RelationshipType
+        description: 包含关系类型
+    collector:
+      plugin: graphdb_collector.py
+      entry: GraphDatabaseCollector
+      params:
+        source: "graph_db"
+    quality_rules:
+      completeness:
+        required_properties: [name, db_type]
+      freshness:
+        ttl_days: 7
+      connectivity:
+        min_relationships: 1
+    enabled: true
+    created_by: "system"
+
+  - type: NodeLabel
+    version: v1
+    label: 节点标签
+    description: 用于描述图数据库中的节点标签
+    properties:
+      name:
+        type: string
+        required: true
+        description: 标签名称
+      label:
+        type: string
+        required: false
+        description: 标签标识
+      type:
+        type: string
+        required: false
+        description: 标签类型（node_label）
+      node_count:
+        type: integer
+        required: false
+        description: 节点数量
+    relationships:
+      - type: BELONGS_TO
+        target: GraphDatabase
+        description: 属于图数据库
+    collector:
+      plugin: graphdb_collector.py
+      entry: GraphDatabaseCollector
+      params:
+        source: "graph_db"
+    quality_rules:
+      completeness:
+        required_properties: [name]
+      freshness:
+        ttl_days: 7
+    enabled: true
+    created_by: "system"
+
+  - type: RelationshipType
+    version: v1
+    label: 关系类型
+    description: 用于描述图数据库中的关系类型
+    properties:
+      name:
+        type: string
+        required: true
+        description: 关系类型名称
+      relationship_type:
+        type: string
+        required: false
+        description: 关系类型标识
+      relationship_count:
+        type: integer
+        required: false
+        description: 关系数量
+    relationships:
+      - type: BELONGS_TO
+        target: GraphDatabase
+        description: 属于图数据库
+    collector:
+      plugin: graphdb_collector.py
+      entry: GraphDatabaseCollector
+      params:
+        source: "graph_db"
+    quality_rules:
+      completeness:
+        required_properties: [name]
+      freshness:
+        ttl_days: 7
+    enabled: true
+    created_by: "system"
+
+relationship_models:
+  - type: CONTAINS
+    version: v1
+    label: 包含
+    description: 图数据库包含节点标签和关系类型
+    source_types: [GraphDatabase]
+    target_types: [NodeLabel, RelationshipType]
+    properties:
+      created_at:
+        type: datetime
+        description: 关系创建时间
+    inferable: false
+    derivable: false
+    enabled: true
+    created_by: "system"
+
+  - type: BELONGS_TO
+    version: v1
+    label: 属于
+    description: 节点标签和关系类型属于图数据库
+    source_types: [NodeLabel, RelationshipType]
+    target_types: [GraphDatabase]
+    properties:
+      created_at:
+        type: datetime
+        description: 关系创建时间
+    inferable: false
+    derivable: false
+    enabled: true
+    created_by: "system"
+
+plugins:
+  graphdb_collector.py: |
+    """
+    图数据库元数据采集器插件
+    支持 Neo4j, FalkorDB 等
+    """
+    from src.collectors.base import BaseCollector
+    from src.core.models import CollectionResult
+    from typing import Dict, Any, Optional
+
+    class GraphDatabaseCollector(BaseCollector):
+        """图数据库采集器"""
+        
+        def collect(self) -> CollectionResult:
+            """采集图数据库元数据"""
+            result = CollectionResult()
+            
+            try:
+                db_type = self.get_config("db_type", "").lower()
+                connection_config = {
+                    "uri": self.get_config("uri", "bolt://localhost:7687"),
+                    "username": self.get_config("username", "neo4j"),
+                    "password": self.get_config("password", ""),
+                    "host": self.get_config("host", "localhost"),
+                    "port": self.get_config("port", 6379),
+                    "graph_name": self.get_config("graph_name", "default")
+                }
+                
+                if db_type == "neo4j":
+                    result = self._collect_neo4j(connection_config)
+                elif db_type == "falkordb":
+                    result = self._collect_falkordb(connection_config)
+                else:
+                    result.errors.append(f"不支持的图数据库类型: {db_type}")
+            
+            except Exception as e:
+                result.errors.append(f"采集失败: {str(e)}")
+            
+            return result
+        
+        def _collect_neo4j(self, connection_config: Dict[str, Any]) -> CollectionResult:
+            """采集 Neo4j 元数据"""
+            result = CollectionResult()
+            
+            try:
+                from neo4j import GraphDatabase
+                
+                uri = connection_config.get("uri", "bolt://localhost:7687")
+                username = connection_config.get("username", "neo4j")
+                password = connection_config.get("password", "")
+                
+                driver = GraphDatabase.driver(uri, auth=(username, password))
+                
+                with driver.session() as session:
+                    # 获取实体类型
+                    entity_type = self.get_entity_type() or "GraphDatabase"
+                    
+                    # 创建数据库实体
+                    db_entity = self.create_entity(
+                        entity_type=entity_type,
+                        name=self.source,
+                        description=f"Neo4j 图数据库: {self.source}",
+                        properties={
+                            "type": "neo4j",
+                            "uri": uri
+                        }
+                    )
+                    result.entities.append(db_entity)
+                    
+                    # 获取所有节点标签
+                    labels_query = "CALL db.labels()"
+                    labels_result = session.run(labels_query)
+                    labels = [record["label"] for record in labels_result]
+                    
+                    # 为每个标签创建实体
+                    for label in labels:
+                        label_entity = self.create_entity(
+                            entity_type="NodeLabel",
+                            name=label,
+                            description=f"节点标签: {label}",
+                            properties={"label": label, "type": "node_label"}
+                        )
+                        result.entities.append(label_entity)
+                        
+                        # 创建数据库包含标签的关系
+                        contains_rel = self.create_relationship(
+                            db_entity.id,
+                            label_entity.id,
+                            "CONTAINS"
+                        )
+                        result.relationships.append(contains_rel)
+                        
+                        # 标签属于数据库（BELONGS_TO关系）
+                        belongs_to_rel = self.create_relationship(
+                            label_entity.id,
+                            db_entity.id,
+                            "BELONGS_TO"
+                        )
+                        result.relationships.append(belongs_to_rel)
+                    
+                    # 获取所有关系类型
+                    rel_types_query = "CALL db.relationshipTypes()"
+                    rel_types_result = session.run(rel_types_query)
+                    rel_types = [record["relationshipType"] for record in rel_types_result]
+                    
+                    # 为每个关系类型创建实体
+                    for rel_type in rel_types:
+                        rel_entity = self.create_entity(
+                            entity_type="RelationshipType",
+                            name=rel_type,
+                            description=f"关系类型: {rel_type}",
+                            properties={"relationship_type": rel_type}
+                        )
+                        result.entities.append(rel_entity)
+                        
+                        # 创建数据库包含关系类型的关系
+                        contains_rel = self.create_relationship(
+                            db_entity.id,
+                            rel_entity.id,
+                            "CONTAINS"
+                        )
+                        result.relationships.append(contains_rel)
+                        
+                        # 关系类型属于数据库（BELONGS_TO关系）
+                        belongs_to_rel = self.create_relationship(
+                            rel_entity.id,
+                            db_entity.id,
+                            "BELONGS_TO"
+                        )
+                        result.relationships.append(belongs_to_rel)
+                
+                driver.close()
+            
+            except Exception as e:
+                result.errors.append(f"采集 Neo4j 失败: {str(e)}")
+            
+            return result
+        
+        def _collect_falkordb(self, connection_config: Dict[str, Any]) -> CollectionResult:
+            """采集 FalkorDB 元数据"""
+            result = CollectionResult()
+            
+            try:
+                from falkordb import FalkorDB
+                
+                host = connection_config.get("host", "localhost")
+                port = connection_config.get("port", 6379)
+                password = connection_config.get("password", "")
+                graph_name = connection_config.get("graph_name", "default")
+                
+                db_kwargs = {"host": host, "port": port}
+                if password:
+                    db_kwargs["password"] = password
+                
+                db = FalkorDB(**db_kwargs)
+                graph = db.select_graph(graph_name)
+                
+                # 获取实体类型
+                entity_type = self.get_entity_type() or "GraphDatabase"
+                
+                # 创建数据库实体
+                db_entity = self.create_entity(
+                    entity_type=entity_type,
+                    name=self.source,
+                    description=f"FalkorDB 图数据库: {self.source}",
+                    properties={
+                        "type": "falkordb",
+                        "graph_name": graph_name
+                    }
+                )
+                result.entities.append(db_entity)
+                
+                # 查询所有节点标签和关系类型（类似Neo4j的处理方式）
+                # 注意：FalkorDB的查询结果格式可能与Neo4j不同
+                labels_query = "CALL db.labels()"
+                labels_result = graph.query(labels_query)
+                
+                rel_types_query = "CALL db.relationshipTypes()"
+                rel_types_result = graph.query(rel_types_query)
+                
+                # 处理标签和关系类型（需要根据FalkorDB的实际返回格式调整）
+            
+            except Exception as e:
+                result.errors.append(f"采集 FalkorDB 失败: {str(e)}")
+            
+            return result
+
+collector_type: "graph_database"
+
+config_schema:
+  - name: db_type
+    type: string
+    label: 数据库类型
+    description: 图数据库类型（neo4j, falkordb）
+    required: true
+    placeholder: "neo4j"
+  - name: uri
+    type: string
+    label: 连接URI
+    description: 数据库连接URI（Neo4j）
+    required: false
+    default: "bolt://localhost:7687"
+    placeholder: "bolt://localhost:7687"
+  - name: username
+    type: string
+    label: 用户名
+    description: 数据库用户名
+    required: false
+    default: "neo4j"
+  - name: password
+    type: string
+    label: 密码
+    description: 数据库密码
+    required: false
+  - name: host
+    type: string
+    label: 主机地址
+    description: 数据库主机地址（FalkorDB）
+    required: false
+    default: "localhost"
+  - name: port
+    type: integer
+    label: 端口
+    description: 数据库端口（FalkorDB）
+    required: false
+    default: 6379
+  - name: graph_name
+    type: string
+    label: 图名称
+    description: 图名称（FalkorDB）
+    required: false
+    default: "default"
+  - name: source
+    type: string
+    label: 数据源标识
+    description: 可选，用于标识数据源
+    required: false
+    default: "graph_db"
+    placeholder: "graph_db"
+
+metadata:
+  name: "Graph Database Metamodel"
+  version: "1.0.0"
+  description: "图数据库元模型定义，包括图数据库、节点标签和关系类型"
+  author: "system"
+

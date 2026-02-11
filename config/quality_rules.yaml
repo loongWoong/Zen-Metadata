@@ -1,0 +1,139 @@
+# 元数据质量规则配置
+# 此文件定义了用于评估元数据质量的规则
+
+rules:
+  # ========== 完整性规则 ==========
+  
+  # 必填字段规则
+  - type: required_field
+    name: required_name
+    dimension: completeness
+    severity: critical
+    enabled: true
+    description: "检查 name 字段是否为必填"
+    field_name: name
+  
+  - type: required_field
+    name: required_type
+    dimension: completeness
+    severity: critical
+    enabled: true
+    description: "检查 type 字段是否为必填"
+    field_name: type
+  
+  - type: required_field
+    name: required_source
+    dimension: completeness
+    severity: high
+    enabled: true
+    description: "检查 source 字段是否为必填"
+    field_name: source
+  
+  # ========== 准确性规则 ==========
+  
+  # 字段格式验证规则
+  - type: format
+    name: format_id
+    dimension: accuracy
+    severity: high
+    enabled: true
+    description: "验证 ID 格式（不能包含特殊字符）"
+    field_name: id
+    pattern: "^[a-zA-Z0-9_\\-]+$"
+  
+  # 字段值域规则
+  - type: value_range
+    name: value_range_updated_at
+    dimension: accuracy
+    severity: medium
+    enabled: true
+    description: "验证 updated_at 时间戳的合理性"
+    field_name: updated_at
+    # 注意：时间戳验证可能需要自定义规则
+  
+  # ========== 一致性规则 ==========
+  
+  # 关系一致性规则
+  - type: relationship
+    name: relationship_table_columns
+    dimension: consistency
+    severity: medium
+    enabled: true
+    description: "表实体应该有列关系"
+    relationship_type: contains
+    required: false  # 对于表类型实体，建议有列关系
+  
+  # ========== 新鲜度规则 ==========
+  
+  # 数据新鲜度规则
+  - type: freshness
+    name: freshness_30_days
+    dimension: freshness
+    severity: low
+    enabled: true
+    description: "数据应在30天内更新"
+    max_age_days: 30
+  
+  - type: freshness
+    name: freshness_90_days
+    dimension: freshness
+    severity: medium
+    enabled: true
+    description: "数据应在90天内更新（警告阈值）"
+    max_age_days: 90
+  
+  # ========== 自定义规则 ==========
+  
+  # 自定义 Python 表达式规则示例
+  - type: custom_python
+    name: custom_description_length
+    dimension: completeness
+    severity: low
+    enabled: false  # 默认禁用，可根据需要启用
+    description: "检查描述长度是否足够（至少10个字符）"
+    expression: "entity.description and len(entity.description.strip()) >= 10"
+  
+  - type: custom_python
+    name: custom_has_properties
+    dimension: completeness
+    severity: low
+    enabled: false
+    description: "检查实体是否有扩展属性"
+    expression: "len(entity.properties) > 0"
+
+# 告警配置
+alerts:
+  # 邮件告警配置（可选）
+  email:
+    enabled: false
+    smtp_host: "smtp.example.com"
+    smtp_port: 587
+    username: "your_email@example.com"
+    password: "your_password"
+    from_email: "quality@example.com"
+    to_emails:
+      - "admin@example.com"
+  
+  # Webhook 告警配置（可选）
+  webhook:
+    enabled: false
+    url: "https://your-webhook-url.com/quality-alerts"
+    method: "POST"
+    headers:
+      Authorization: "Bearer your-token"
+  
+  # 告警阈值
+  thresholds:
+    overall_score_critical: 0.3  # 综合评分低于此值触发严重告警
+    overall_score_warning: 0.5   # 综合评分低于此值触发警告
+    completeness_min: 0.6        # 完整性最低要求
+    freshness_max_days: 90       # 数据最大年龄（天）
+
+# 评分权重配置
+weights:
+  completeness: 0.3   # 完整性权重
+  accuracy: 0.3       # 准确性权重
+  consistency: 0.2    # 一致性权重
+  freshness: 0.2      # 新鲜度权重
+
+

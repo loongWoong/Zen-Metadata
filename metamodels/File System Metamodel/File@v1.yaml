@@ -1,0 +1,60 @@
+entity_models:
+- collector:
+    entry: FileSystemCollector
+    params:
+      source: filesystem
+    plugin: filesystem_collector.py
+  created_at: '2026-02-06T13:38:28.315863'
+  created_by: system
+  description: 用于描述文件系统中的文件
+  enabled: true
+  full_type: File@v1
+  label: 文件
+  properties:
+    absolute_path:
+      description: 绝对路径
+      required: false
+      type: string
+    created_at:
+      description: 创建时间
+      required: false
+      type: datetime
+    extension:
+      description: 文件扩展名
+      required: false
+      type: string
+    is_readonly:
+      description: 是否只读
+      required: false
+      type: boolean
+    modified_at:
+      description: 修改时间
+      required: false
+      type: datetime
+    name:
+      description: 文件名
+      required: true
+      type: string
+    path:
+      description: 文件路径
+      required: true
+      type: string
+    size:
+      description: 文件大小（字节）
+      required: false
+      type: integer
+  quality_rules:
+    completeness:
+      required_properties:
+      - name
+      - path
+    freshness:
+      ttl_days: 1
+  relationships:
+  - description: 属于目录
+    target: Directory
+    type: BELONGS_TO
+  type: File
+  updated_at: '2026-02-06T13:38:28.315863'
+  version: v1
+relationship_models: []

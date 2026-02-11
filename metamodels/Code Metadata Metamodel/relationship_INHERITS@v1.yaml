@@ -1,0 +1,21 @@
+entity_models: []
+relationship_models:
+- created_at: '2026-02-11T13:07:31.320115'
+  created_by: system
+  derivable: false
+  description: 类继承自父类
+  enabled: true
+  full_type: INHERITS@v1
+  inferable: false
+  label: 继承
+  properties:
+    created_at:
+      description: 关系创建时间
+      type: datetime
+  source_types:
+  - CodeClass
+  target_types:
+  - CodeClass
+  type: INHERITS
+  updated_at: '2026-02-11T13:07:31.320115'
+  version: v1

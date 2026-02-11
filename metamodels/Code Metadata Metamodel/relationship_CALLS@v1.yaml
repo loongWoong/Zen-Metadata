@@ -1,0 +1,21 @@
+entity_models: []
+relationship_models:
+- created_at: '2026-02-11T13:07:31.320115'
+  created_by: system
+  derivable: false
+  description: 函数调用其他函数
+  enabled: true
+  full_type: CALLS@v1
+  inferable: false
+  label: 调用
+  properties:
+    call_count:
+      description: 调用次数
+      type: integer
+  source_types:
+  - CodeFunction
+  target_types:
+  - CodeFunction
+  type: CALLS
+  updated_at: '2026-02-11T13:07:31.320115'
+  version: v1

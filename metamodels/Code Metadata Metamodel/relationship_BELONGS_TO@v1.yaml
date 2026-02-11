@@ -1,0 +1,25 @@
+entity_models: []
+relationship_models:
+- created_at: '2026-02-10T10:00:53.694729'
+  created_by: system
+  derivable: false
+  description: 文件属于项目，类/函数属于文件，方法属于类
+  enabled: true
+  full_type: BELONGS_TO@v1
+  inferable: false
+  label: 属于
+  properties:
+    created_at:
+      description: 关系创建时间
+      type: datetime
+  source_types:
+  - CodeFile
+  - CodeClass
+  - CodeFunction
+  target_types:
+  - CodeProject
+  - CodeFile
+  - CodeClass
+  type: BELONGS_TO
+  updated_at: '2026-02-10T10:00:53.694729'
+  version: v1

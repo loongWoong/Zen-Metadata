@@ -1,0 +1,46 @@
+collector_type: filesystem
+config_schema:
+- description: 要扫描的路径列表
+  label: 扫描路径
+  name: scan_paths
+  placeholder: '["/path/to/dir1", "/path/to/dir2"]'
+  required: true
+  type: json
+- default: []
+  description: 要排除的路径模式列表
+  label: 排除模式
+  name: exclude_patterns
+  options:
+  - __pycache__
+  - .git
+  placeholder: '["__pycache__", ".git"]'
+  required: false
+  type: json
+- description: 递归扫描的最大深度（可选）
+  label: 最大深度
+  min: 1
+  name: max_depth
+  placeholder: '10'
+  required: false
+  type: integer
+- default: filesystem
+  description: 可选，用于标识数据源
+  label: 数据源标识
+  name: source
+  placeholder: filesystem
+  required: false
+  type: string
+deployed_at: '2026-02-06T13:38:28.334046'
+entity_models:
+- Directory
+- File
+metadata:
+  author: system
+  description: 文件系统元模型定义，包括目录和文件
+  name: File System Metamodel
+  version: 1.0.0
+name: File System Metamodel
+path: metamodels\File System Metamodel
+relationship_models:
+- CONTAINS
+- BELONGS_TO

@@ -1,0 +1,21 @@
+entity_models: []
+relationship_models:
+- created_at: '2026-02-11T13:07:31.320115'
+  created_by: system
+  derivable: false
+  description: 类实现接口
+  enabled: true
+  full_type: IMPLEMENTS@v1
+  inferable: false
+  label: 实现
+  properties:
+    created_at:
+      description: 关系创建时间
+      type: datetime
+  source_types:
+  - CodeClass
+  target_types:
+  - CodeClass
+  type: IMPLEMENTS
+  updated_at: '2026-02-11T13:07:31.320115'
+  version: v1

@@ -1,0 +1,52 @@
+entity_models:
+- collector:
+    entry: CodeMetadataCollector
+    params:
+      source: code
+    plugin: code_collector.py
+  created_at: '2026-02-11T13:07:31.320115'
+  created_by: system
+  description: 用于描述源代码文件
+  enabled: true
+  full_type: CodeFile@v1
+  label: 代码文件
+  properties:
+    extension:
+      description: 文件扩展名
+      required: false
+      type: string
+    language:
+      description: 编程语言
+      required: false
+      type: string
+    line_count:
+      description: 代码行数
+      required: false
+      type: integer
+    path:
+      description: 文件路径
+      required: true
+      type: string
+  quality_rules:
+    completeness:
+      required_properties:
+      - path
+    freshness:
+      ttl_days: 1
+  relationships:
+  - description: 包含类定义
+    target: CodeClass
+    type: CONTAINS
+  - description: 包含函数定义
+    target: CodeFunction
+    type: CONTAINS
+  - description: 导入模块
+    target: CodeModule
+    type: IMPORTS
+  - description: 属于项目
+    target: CodeProject
+    type: BELONGS_TO
+  type: CodeFile
+  updated_at: '2026-02-11T13:07:31.320115'
+  version: v1
+relationship_models: []

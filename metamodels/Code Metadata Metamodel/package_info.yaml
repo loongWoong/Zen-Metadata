@@ -1,0 +1,59 @@
+collector_type: code_metadata
+config_schema:
+- description: 源代码项目或目录的路径
+  label: 源代码路径
+  name: source_path
+  placeholder: /path/to/project
+  required: true
+  type: string
+- default:
+  - python
+  description: 要采集的编程语言列表，如 ["python", "javascript", "java"]
+  label: 支持的语言
+  name: languages
+  options:
+  - python
+  - javascript
+  - typescript
+  - java
+  placeholder: '["python", "javascript", "java"]'
+  required: false
+  type: json
+- default: []
+  description: 要排除的文件路径模式列表
+  label: 排除模式
+  name: exclude_patterns
+  options:
+  - __pycache__
+  - node_modules
+  placeholder: '["__pycache__", "node_modules"]'
+  required: false
+  type: json
+- default: code
+  description: 可选，用于标识数据源
+  label: 数据源标识
+  name: source
+  placeholder: code
+  required: false
+  type: string
+deployed_at: '2026-02-11T13:07:31.417846'
+entity_models:
+- CodeProject
+- CodeFile
+- CodeClass
+- CodeFunction
+- CodeModule
+metadata:
+  author: system
+  description: 代码元数据元模型定义，包括项目、文件、类、函数和模块
+  name: Code Metadata Metamodel
+  version: 1.0.0
+name: Code Metadata Metamodel
+path: metamodels\Code Metadata Metamodel
+relationship_models:
+- CONTAINS
+- IMPORTS
+- INHERITS
+- IMPLEMENTS
+- CALLS
+- BELONGS_TO

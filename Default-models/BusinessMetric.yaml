@@ -1,0 +1,157 @@
+# 业务指标元模型示例
+entity_models:
+  - type: BusinessMetric
+    version: v1
+    label: 业务指标
+    description: 用于描述业务计算指标
+    properties:
+      formula:
+        type: string
+        required: true
+        description: 计算公式
+      granularity:
+        type: enum
+        values: [day, week, month, quarter, year]
+        required: true
+        description: 时间粒度
+      owner:
+        type: string
+        required: true
+        description: 负责人
+      unit:
+        type: string
+        required: false
+        description: 单位
+      threshold:
+        type: float
+        required: false
+        description: 阈值
+    relationships:
+      - type: DEPENDS_ON
+        target: Table
+        description: 依赖的数据表
+      - type: DERIVED_FROM
+        target: Column
+        description: 派生自的列
+    collector:
+      plugin: business_metric_collector.py
+      entry: collect_metrics
+      params:
+        source: "business_metrics"
+    quality_rules:
+      completeness:
+        required_properties: [formula, owner, granularity]
+      freshness:
+        ttl_days: 7
+      connectivity:
+        min_relationships: 2
+    enabled: true
+    created_by: "system"
+
+relationship_models:
+  - type: DERIVED_FROM
+    version: v1
+    label: 派生自
+    description: 业务指标派生自数据列或表
+    source_types: [BusinessMetric]
+    target_types: [Column, Table]
+    properties:
+      confidence:
+        type: float
+        description: 派生置信度
+    inferable: true
+    derivable: false
+    enabled: true
+    created_by: "system"
+
+  - type: DEPENDS_ON
+    version: v1
+    label: 依赖
+    description: 业务指标依赖数据表
+    source_types: [BusinessMetric]
+    target_types: [Table]
+    properties:
+      dependency_type:
+        type: enum
+        values: [direct, indirect]
+        description: 依赖类型
+    inferable: false
+    derivable: false
+    enabled: true
+    created_by: "system"
+
+plugins:
+  business_metric_collector.py: |
+    """
+    业务指标采集器插件
+    """
+    from src.collectors.base import BaseCollector
+    from src.core.models import MetadataEntity, MetadataRelationship, CollectionResult, MetadataType, RelationshipType
+    from typing import Dict, Any, List
+    
+    class BusinessMetricCollector(BaseCollector):
+        """业务指标采集器"""
+        
+        def collect(self) -> CollectionResult:
+            """
+            采集业务指标
+            从配置、数据库或API中获取业务指标定义
+            """
+            entities = []
+            relationships = []
+            
+            # 示例：从配置中读取业务指标
+            metrics_config = self.config.get("metrics", [])
+            
+            for metric_config in metrics_config:
+                # 创建业务指标实体
+                entity_id = self.generate_id("BusinessMetric", metric_config.get("name", ""))
+                entity = self.create_entity(
+                    entity_type=MetadataType.FUNCTION,  # 临时使用，实际应该使用自定义类型
+                    name=metric_config.get("name", ""),
+                    description=metric_config.get("description"),
+                    properties={
+                        "formula": metric_config.get("formula", ""),
+                        "granularity": metric_config.get("granularity", "day"),
+                        "owner": metric_config.get("owner", ""),
+                        "unit": metric_config.get("unit", ""),
+                        "threshold": metric_config.get("threshold")
+                    },
+                    entity_id=entity_id
+                )
+                entities.append(entity)
+                
+                # 创建关系（如果指定了依赖）
+                if "depends_on" in metric_config:
+                    for dep in metric_config["depends_on"]:
+                        # 使用 DEPENDS_ON 关系（依赖表）
+                        rel = self.create_relationship(
+                            source_id=entity_id,
+                            target_id=dep,
+                            relationship_type="DEPENDS_ON"
+                        )
+                        relationships.append(rel)
+                
+                # 创建 DERIVED_FROM 关系（如果指定了派生源）
+                if "derived_from" in metric_config:
+                    for source in metric_config["derived_from"]:
+                        # 使用 DERIVED_FROM 关系（派生自列或表）
+                        rel = self.create_relationship(
+                            source_id=entity_id,
+                            target_id=source,
+                            relationship_type="DERIVED_FROM"
+                        )
+                        relationships.append(rel)
+            
+            return CollectionResult(
+                entities=entities,
+                relationships=relationships,
+                metadata={"source": "business_metric_collector", "count": len(entities)}
+            )
+
+metadata:
+  name: "BusinessMetric Metamodel"
+  version: "1.0.0"
+  description: "业务指标元模型定义"
+  author: "system"
+

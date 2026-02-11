@@ -1,0 +1,22 @@
+entity_models: []
+relationship_models:
+- created_at: '2026-02-06T13:38:28.315863'
+  created_by: system
+  derivable: false
+  description: 目录包含子目录或文件
+  enabled: true
+  full_type: CONTAINS@v1
+  inferable: false
+  label: 包含
+  properties:
+    created_at:
+      description: 关系创建时间
+      type: datetime
+  source_types:
+  - Directory
+  target_types:
+  - Directory
+  - File
+  type: CONTAINS
+  updated_at: '2026-02-06T13:38:28.315863'
+  version: v1

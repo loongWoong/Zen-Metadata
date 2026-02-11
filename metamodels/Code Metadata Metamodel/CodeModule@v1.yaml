@@ -1,0 +1,35 @@
+entity_models:
+- collector:
+    entry: CodeMetadataCollector
+    params:
+      source: code
+    plugin: code_collector.py
+  created_at: '2026-02-11T13:07:31.320115'
+  created_by: system
+  description: 用于描述被导入的模块或包
+  enabled: true
+  full_type: CodeModule@v1
+  label: 代码模块
+  properties:
+    import_path:
+      description: 导入路径
+      required: false
+      type: string
+    name:
+      description: 模块名
+      required: true
+      type: string
+  quality_rules:
+    completeness:
+      required_properties:
+      - name
+    freshness:
+      ttl_days: 30
+  relationships:
+  - description: 被文件导入
+    target: CodeFile
+    type: IMPORTS
+  type: CodeModule
+  updated_at: '2026-02-11T13:07:31.320115'
+  version: v1
+relationship_models: []

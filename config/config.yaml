@@ -1,0 +1,126 @@
+# Zen Metadata 配置文件
+
+# FalkorDB 配置
+falkordb:
+  host: 192.168.22.212
+  port: 6379
+  password: ""
+  graph_name: "zen_metadata1"
+
+# SQLite 配置
+sqlite:
+  database: "data/zen_metadata1.db"
+  
+# DuckDB 配置
+duckdb:
+  database: "data/zen_metadata_analytics1.duckdb"
+
+# 采集器配置
+collectors:
+  # 关系型数据库采集器
+  relational:
+    enabled: true
+    connections:
+      - name: "postgres_example"
+        type: "postgresql"
+        host: "localhost"
+        port: 5432
+        database: "example_db"
+        username: "user"
+        password: "password"
+      - name: "mysql_example"
+        type: "mysql"
+        host: "192.168.22.212"
+        port: 3307
+        database: "gs0115"
+        username: "root"
+        password: "Cvicse@123"
+  
+  # 图数据库采集器
+  graphdb:
+    enabled: true
+    connections:
+      - name: "neo4j_example"
+        type: "neo4j"
+        uri: "bolt://192.168.22.212:7687"
+        username: "neo4j"
+        password: "ump@2025"
+  
+  # 代码元数据采集器
+  code:
+    enabled: true
+    languages:
+      - python
+      - javascript
+      - java
+      - typescript
+    exclude_patterns:
+      - "**/node_modules/**"
+      - "**/__pycache__/**"
+      - "**/.git/**"
+      - "**/venv/**"
+  
+  # 文件系统采集器
+  filesystem:
+    enabled: true
+    scan_paths:
+      - "/path/to/scan"
+    exclude_patterns:
+      - "**/.git/**"
+      - "**/node_modules/**"
+      - "**/__pycache__/**"
+
+# API 配置
+api:
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+
+# 日志配置
+logging:
+  level: "INFO"
+  file: "logs/zen_metadata.log"
+
+# CORS 配置
+cors_origins:
+  - "http://localhost:5175"
+  - "http://localhost:5173"
+  - "http://localhost:3000"
+  - "http://127.0.0.1:5175"
+  - "http://127.0.0.1:5173"
+  - "http://127.0.0.1:3000"
+
+# 质量管理配置
+quality:
+  # 规则配置文件路径（可选，如果未指定则使用默认规则）
+  rules_file: "config/quality_rules.yaml"
+  
+  # 是否启用质量管理
+  enabled: true
+  
+  # 自动评估配置
+  auto_assess:
+    enabled: true
+    # 在实体创建/更新时自动评估
+    on_entity_update: true
+    # 定期批量评估（秒）
+    batch_assess_interval: 3600
+  
+  # 告警配置
+  alerts:
+    enabled: true
+    # 告警渠道
+    channels:
+      - log  # log, email, webhook, websocket
+
+# 元模型配置
+metamodel:
+  # 元模型文件目录
+  metamodels_dir: "metamodels"
+  # 插件目录
+  plugins_dir: "plugins"
+  # 是否启用元模型管理
+  enabled: true
+  # 自动加载元模型
+  auto_load: true
+

@@ -1,0 +1,65 @@
+entity_models:
+- collector:
+    entry: CodeMetadataCollector
+    params:
+      source: code
+    plugin: code_collector.py
+  created_at: '2026-02-11T13:07:31.320115'
+  created_by: system
+  description: 用于描述代码中的函数或方法定义
+  enabled: true
+  full_type: CodeFunction@v1
+  label: 代码函数
+  properties:
+    is_async:
+      description: 是否为异步函数
+      required: false
+      type: boolean
+    is_constructor:
+      description: 是否为构造函数
+      required: false
+      type: boolean
+    is_static:
+      description: 是否为静态方法
+      required: false
+      type: boolean
+    language:
+      description: 编程语言
+      required: false
+      type: string
+    line_number:
+      description: 定义行号
+      required: false
+      type: integer
+    name:
+      description: 函数名
+      required: true
+      type: string
+    parameters:
+      description: 参数列表
+      required: false
+      type: json
+    return_type:
+      description: 返回类型
+      required: false
+      type: string
+  quality_rules:
+    completeness:
+      required_properties:
+      - name
+    freshness:
+      ttl_days: 7
+  relationships:
+  - description: 调用其他函数
+    target: CodeFunction
+    type: CALLS
+  - description: 属于类（方法）
+    target: CodeClass
+    type: BELONGS_TO
+  - description: 属于文件（函数）
+    target: CodeFile
+    type: BELONGS_TO
+  type: CodeFunction
+  updated_at: '2026-02-11T13:07:31.320115'
+  version: v1
+relationship_models: []

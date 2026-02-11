@@ -1,0 +1,41 @@
+entity_models:
+- collector:
+    entry: CodeMetadataCollector
+    params:
+      source: code
+    plugin: code_collector.py
+  created_at: '2026-02-10T09:12:04.377284'
+  created_by: system
+  description: 用于描述代码项目或源代码目录
+  enabled: true
+  full_type: CodeProject@v1
+  label: 代码项目
+  properties:
+    languages:
+      description: 支持的语言列表
+      required: false
+      type: json
+    name:
+      description: 项目名称
+      required: false
+      type: string
+    path:
+      description: 项目路径
+      required: true
+      type: string
+  quality_rules:
+    completeness:
+      required_properties:
+      - path
+    connectivity:
+      min_relationships: 1
+    freshness:
+      ttl_days: 7
+  relationships:
+  - description: 包含源代码文件
+    target: CodeFile
+    type: CONTAINS
+  type: CodeProject
+  updated_at: '2026-02-10T09:12:04.377284'
+  version: v1
+relationship_models: []

@@ -1,0 +1,45 @@
+# 核心依赖
+falkordb>=1.0.0
+duckdb>=0.9.0
+redis>=5.0.0
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# 数据处理
+pandas
+numpy>=1.24.0
+
+# 数据库连接
+psycopg2-binary>=2.9.9
+pymysql>=1.1.0
+sqlalchemy>=2.0.0
+neo4j
+# 代码分析
+tree-sitter>=0.20.0
+tree-sitter-python>=0.20.0
+tree-sitter-javascript>=0.20.0
+tree-sitter-java
+
+# 可视化
+graphiti>=0.1.0
+networkx>=3.2.0
+plotly>=5.18.0
+
+# 工具库
+pyyaml>=6.0.1
+python-dotenv>=1.0.0
+click>=8.1.7
+
+# 认证与安全
+passlib[bcrypt]>=1.7.4
+python-jose[cryptography]>=3.3.0
+email-validator>=2.0.0
+
+# 开发工具
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+black>=23.11.0
+mypy>=1.7.0
+

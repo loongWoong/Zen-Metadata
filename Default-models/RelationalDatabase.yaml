@@ -1,0 +1,523 @@
+# 关系型数据库元模型
+entity_models:
+  - type: Database
+    version: v1
+    label: 数据库
+    description: 用于描述关系型数据库
+    properties:
+      name:
+        type: string
+        required: true
+        description: 数据库名称
+      connection_string:
+        type: string
+        required: false
+        description: 连接字符串（脱敏）
+      schema:
+        type: string
+        required: false
+        description: 数据库模式
+      db_type:
+        type: string
+        required: false
+        description: 数据库类型（postgresql, mysql, sqlite等）
+    relationships:
+      - type: CONTAINS
+        target: Table
+        description: 包含表
+    collector:
+      plugin: relational_collector.py
+      entry: RelationalDatabaseCollector
+      params:
+        source: "relational_db"
+    quality_rules:
+      completeness:
+        required_properties: [name]
+      freshness:
+        ttl_days: 7
+      connectivity:
+        min_relationships: 1
+    enabled: true
+    created_by: "system"
+
+  - type: Table
+    version: v1
+    label: 数据表
+    description: 用于描述数据库表
+    properties:
+      name:
+        type: string
+        required: true
+        description: 表名
+      schema:
+        type: string
+        required: false
+        description: 表所属模式
+      table_name:
+        type: string
+        required: false
+        description: 完整表名（包含模式）
+      row_count:
+        type: integer
+        required: false
+        description: 行数
+      size_bytes:
+        type: integer
+        required: false
+        description: 表大小（字节）
+    relationships:
+      - type: CONTAINS
+        target: Column
+        description: 包含列
+      - type: CONTAINS
+        target: Index
+        description: 包含索引
+      - type: REFERENCES
+        target: Table
+        description: 引用其他表（外键）
+      - type: BELONGS_TO
+        target: Database
+        description: 属于数据库
+    collector:
+      plugin: relational_collector.py
+      entry: RelationalDatabaseCollector
+      params:
+        source: "relational_db"
+    quality_rules:
+      completeness:
+        required_properties: [name]
+      freshness:
+        ttl_days: 7
+      connectivity:
+        min_relationships: 1
+    enabled: true
+    created_by: "system"
+
+  - type: Column
+    version: v1
+    label: 数据列
+    description: 用于描述数据库表的列
+    properties:
+      name:
+        type: string
+        required: true
+        description: 列名
+      type:
+        type: string
+        required: true
+        description: 数据类型
+      nullable:
+        type: boolean
+        required: false
+        description: 是否可为空
+      default:
+        type: string
+        required: false
+        description: 默认值
+      primary_key:
+        type: boolean
+        required: false
+        description: 是否为主键
+      foreign_key:
+        type: boolean
+        required: false
+        description: 是否为外键
+      position:
+        type: integer
+        required: false
+        description: 列位置
+    relationships:
+      - type: BELONGS_TO
+        target: Table
+        description: 属于表
+      - type: REFERENCES
+        target: Column
+        description: 引用其他列（外键）
+    collector:
+      plugin: relational_collector.py
+      entry: RelationalDatabaseCollector
+      params:
+        source: "relational_db"
+    quality_rules:
+      completeness:
+        required_properties: [name, type]
+      freshness:
+        ttl_days: 7
+    enabled: true
+    created_by: "system"
+
+  - type: Index
+    version: v1
+    label: 索引
+    description: 用于描述数据库索引
+    properties:
+      name:
+        type: string
+        required: true
+        description: 索引名
+      unique:
+        type: boolean
+        required: false
+        description: 是否唯一索引
+      columns:
+        type: json
+        required: false
+        description: 索引列列表
+      index_type:
+        type: string
+        required: false
+        description: 索引类型
+    relationships:
+      - type: BELONGS_TO
+        target: Table
+        description: 属于表
+    collector:
+      plugin: relational_collector.py
+      entry: RelationalDatabaseCollector
+      params:
+        source: "relational_db"
+    quality_rules:
+      completeness:
+        required_properties: [name]
+      freshness:
+        ttl_days: 7
+    enabled: true
+    created_by: "system"
+
+relationship_models:
+  - type: CONTAINS
+    version: v1
+    label: 包含
+    description: 数据库包含表，表包含列和索引
+    source_types: [Database, Table]
+    target_types: [Table, Column, Index]
+    properties:
+      created_at:
+        type: datetime
+        description: 关系创建时间
+    inferable: false
+    derivable: false
+    enabled: true
+    created_by: "system"
+
+  - type: REFERENCES
+    version: v1
+    label: 引用
+    description: 表之间的外键引用关系，列之间的外键引用关系
+    source_types: [Table, Column]
+    target_types: [Table, Column]
+    properties:
+      columns:
+        type: json
+        description: 外键列列表
+      referred_columns:
+        type: json
+        description: 被引用列列表
+      name:
+        type: string
+        description: 外键约束名称
+    inferable: false
+    derivable: false
+    enabled: true
+    created_by: "system"
+
+  - type: BELONGS_TO
+    version: v1
+    label: 属于
+    description: 表属于数据库，列和索引属于表
+    source_types: [Table, Column, Index]
+    target_types: [Database, Table]
+    properties:
+      created_at:
+        type: datetime
+        description: 关系创建时间
+    inferable: false
+    derivable: false
+    enabled: true
+    created_by: "system"
+
+plugins:
+  relational_collector.py: |
+    """
+    关系型数据库元数据采集器插件
+    支持 PostgreSQL, MySQL, SQLite 等
+    """
+    from src.collectors.base import BaseCollector
+    from src.core.models import CollectionResult
+    from typing import Dict, Any, Optional
+    from sqlalchemy import create_engine, inspect, MetaData
+    from sqlalchemy.engine import Engine
+
+    class RelationalDatabaseCollector(BaseCollector):
+        """关系型数据库采集器"""
+        
+        def collect(self) -> CollectionResult:
+            """采集关系型数据库元数据"""
+            result = CollectionResult()
+            
+            try:
+                connection_string = self.get_config("connection_string")
+                if not connection_string:
+                    # 尝试从其他配置构建连接字符串
+                    db_type = self.get_config("type", "postgresql")
+                    host = self.get_config("host", "localhost")
+                    port = self.get_config("port", 5432)
+                    database = self.get_config("database", "")
+                    username = self.get_config("username", "")
+                    password = self.get_config("password", "")
+                    
+                    from urllib.parse import quote_plus
+                    username_encoded = quote_plus(username)
+                    password_encoded = quote_plus(password)
+                    
+                    if db_type == "postgresql":
+                        connection_string = f"postgresql://{username_encoded}:{password_encoded}@{host}:{port}/{database}"
+                    elif db_type == "mysql":
+                        connection_string = f"mysql+pymysql://{username_encoded}:{password_encoded}@{host}:{port}/{database}"
+                    else:
+                        connection_string = f"{db_type}://{username_encoded}:{password_encoded}@{host}:{port}/{database}"
+                
+                if not connection_string:
+                    result.errors.append("缺少必需的配置: connection_string 或数据库连接参数")
+                    return result
+                
+                self.connection_string = connection_string
+                schema = self.get_config("schema")
+                
+                engine = self._get_engine()
+                inspector = inspect(engine)
+                
+                # 获取实体类型
+                entity_type = self.get_entity_type() or "Database"
+                
+                # 创建数据库实体
+                db_entity = self.create_entity(
+                    entity_type=entity_type,
+                    name=self.source,
+                    description=f"数据库: {self.source}",
+                    properties={
+                        "connection_string": connection_string.split("@")[-1] if "@" in connection_string else "***",
+                        "schema": schema or "default"
+                    }
+                )
+                result.entities.append(db_entity)
+                
+                # 获取所有表
+                tables = inspector.get_table_names(schema=schema)
+                
+                # 采集每个表的元数据
+                for table_name in tables:
+                    table_result = self._collect_table(inspector, table_name, schema, db_entity.id)
+                    result.entities.extend(table_result.entities)
+                    result.relationships.extend(table_result.relationships)
+                
+                # 采集外键关系
+                fk_result = self._collect_foreign_keys(inspector, schema)
+                result.relationships.extend(fk_result.relationships)
+            
+            except Exception as e:
+                result.errors.append(f"采集失败: {str(e)}")
+            
+            return result
+        
+        def _get_engine(self) -> Engine:
+            """获取数据库引擎"""
+            if not hasattr(self, 'engine') or self.engine is None:
+                self.engine = create_engine(self.connection_string)
+            return self.engine
+        
+        def _collect_table(self, inspector, table_name: str, schema: Optional[str], 
+                          database_id: str) -> CollectionResult:
+            """采集表的元数据"""
+            result = CollectionResult()
+            
+            try:
+                # 创建表实体
+                table_entity = self.create_entity(
+                    entity_type="Table",
+                    name=table_name,
+                    description=f"表: {table_name}",
+                    properties={
+                        "schema": schema,
+                        "table_name": table_name
+                    }
+                )
+                result.entities.append(table_entity)
+                
+                # 创建数据库包含表的关系
+                contains_rel = self.create_relationship(
+                    database_id,
+                    table_entity.id,
+                    "CONTAINS"
+                )
+                result.relationships.append(contains_rel)
+                
+                # 表属于数据库（BELONGS_TO关系）
+                belongs_to_rel = self.create_relationship(
+                    table_entity.id,
+                    database_id,
+                    "BELONGS_TO"
+                )
+                result.relationships.append(belongs_to_rel)
+                
+                # 获取列信息
+                columns = inspector.get_columns(table_name, schema=schema)
+                for column in columns:
+                    column_entity = self.create_entity(
+                        entity_type="Column",
+                        name=column['name'],
+                        description=f"列: {column['name']}",
+                        properties={
+                            "type": str(column['type']),
+                            "nullable": column.get('nullable', True),
+                            "default": str(column.get('default', '')),
+                            "primary_key": column.get('primary_key', False)
+                        }
+                    )
+                    result.entities.append(column_entity)
+                    
+                    # 创建表包含列的关系
+                    contains_rel = self.create_relationship(
+                        table_entity.id,
+                        column_entity.id,
+                        "CONTAINS"
+                    )
+                    result.relationships.append(contains_rel)
+                    
+                    # 列属于表（BELONGS_TO关系）
+                    belongs_to_rel = self.create_relationship(
+                        column_entity.id,
+                        table_entity.id,
+                        "BELONGS_TO"
+                    )
+                    result.relationships.append(belongs_to_rel)
+                
+                # 获取索引信息
+                indexes = inspector.get_indexes(table_name, schema=schema)
+                for index in indexes:
+                    index_entity = self.create_entity(
+                        entity_type="Index",
+                        name=index['name'],
+                        description=f"索引: {index['name']}",
+                        properties={
+                            "unique": index.get('unique', False),
+                            "columns": index.get('column_names', [])
+                        }
+                    )
+                    result.entities.append(index_entity)
+                    
+                    # 创建表包含索引的关系
+                    contains_rel = self.create_relationship(
+                        table_entity.id,
+                        index_entity.id,
+                        "CONTAINS"
+                    )
+                    result.relationships.append(contains_rel)
+                    
+                    # 索引属于表（BELONGS_TO关系）
+                    belongs_to_rel = self.create_relationship(
+                        index_entity.id,
+                        table_entity.id,
+                        "BELONGS_TO"
+                    )
+                    result.relationships.append(belongs_to_rel)
+            
+            except Exception as e:
+                result.errors.append(f"采集表 {table_name} 失败: {str(e)}")
+            
+            return result
+        
+        def _collect_foreign_keys(self, inspector, schema: Optional[str]) -> CollectionResult:
+            """采集外键关系"""
+            result = CollectionResult()
+            
+            try:
+                tables = inspector.get_table_names(schema=schema)
+                
+                for table_name in tables:
+                    foreign_keys = inspector.get_foreign_keys(table_name, schema=schema)
+                    
+                    for fk in foreign_keys:
+                        # 查找源表和目标表实体ID
+                        source_table_id = self.generate_id("Table", table_name)
+                        target_table_id = self.generate_id("Table", fk['referred_table'])
+                        
+                        # 创建外键关系
+                        fk_rel = self.create_relationship(
+                            source_table_id,
+                            target_table_id,
+                            "REFERENCES",
+                            properties={
+                                "columns": fk.get('constrained_columns', []),
+                                "referred_columns": fk.get('referred_columns', []),
+                                "name": fk.get('name', '')
+                            }
+                        )
+                        result.relationships.append(fk_rel)
+            
+            except Exception as e:
+                result.errors.append(f"采集外键失败: {str(e)}")
+            
+            return result
+
+collector_type: "relational_database"
+
+config_schema:
+  - name: connection_string
+    type: string
+    label: 连接字符串
+    description: 数据库连接字符串
+    required: true
+    placeholder: "postgresql://user:password@host:port/database"
+  - name: type
+    type: string
+    label: 数据库类型
+    description: 数据库类型（postgresql, mysql, sqlite等）
+    required: false
+    default: "postgresql"
+  - name: host
+    type: string
+    label: 主机地址
+    description: 数据库主机地址
+    required: false
+    default: "localhost"
+  - name: port
+    type: integer
+    label: 端口
+    description: 数据库端口
+    required: false
+    default: 5432
+  - name: database
+    type: string
+    label: 数据库名
+    description: 数据库名称
+    required: false
+  - name: username
+    type: string
+    label: 用户名
+    description: 数据库用户名
+    required: false
+  - name: password
+    type: string
+    label: 密码
+    description: 数据库密码
+    required: false
+  - name: schema
+    type: string
+    label: 模式
+    description: 数据库模式（可选）
+    required: false
+  - name: source
+    type: string
+    label: 数据源标识
+    description: 可选，用于标识数据源
+    required: false
+    default: "relational_db"
+    placeholder: "relational_db"
+
+metadata:
+  name: "Relational Database Metamodel"
+  version: "1.0.0"
+  description: "关系型数据库元模型定义，包括数据库、表、列和索引"
+  author: "system"
+
